@@ -2,7 +2,7 @@
 
 **HR Management Platform** | VectorNexus[Beta] | Hexalog
 
-A modern, self-hosted HR system covering attendance, leave management, payroll, and expense claims.
+A modern, self-hosted HR system covering attendance, leave management, payroll, and expense claims — fully containerized with Docker.
 
 ---
 
@@ -10,50 +10,75 @@ A modern, self-hosted HR system covering attendance, leave management, payroll, 
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 18 + TypeScript + TailwindCSS + Vite |
+| Frontend | React 18 + TypeScript + TailwindCSS + Vite (served via Nginx) |
 | Backend | Node.js + Express + TypeScript |
-| Database | PostgreSQL (via Prisma ORM) |
+| Database | PostgreSQL 16 (Docker container) |
+| Cache | Redis 7 (Docker container) |
 | Auth | JWT (access token) + HttpOnly cookie (refresh token) |
 | Email | Gmail SMTP via Nodemailer |
-| Deploy | Nginx + PM2 + HTTPS |
+| Deploy | Docker Compose |
 
 ---
 
-## Local Development Setup
+## Quick Start (Docker)
 
 ### Prerequisites
-- Node.js >= 20
-- PostgreSQL running locally
-- Redis running locally
+- Docker >= 24
+- Docker Compose v2
 
-### 1. Clone and install
+### 1. Clone and configure
 ```bash
 git clone https://github.com/lamba-manish-hexalog/ripfarsight.git
 cd ripfarsight
+cp .env.example .env
+# Edit .env — set strong passwords for POSTGRES_PASSWORD, JWT_SECRET, JWT_REFRESH_SECRET
+```
+
+### 2. Start all services
+```bash
+docker compose up -d
+```
+
+This starts: **PostgreSQL**, **Redis**, **Backend API**, **Frontend (Nginx)**
+
+### 3. Run migrations + seed
+```bash
+docker compose run --rm migrate
+```
+
+Seeds: 4 roles, 3 leave types, default shift, super admin (`admin@hexalog.in`)
+
+### 4. Access
+- **Frontend:** http://localhost
+- **Backend API:** http://localhost:4000/health
+- **DB:** localhost:5432 (user: rfsuser)
+
+---
+
+## Docker Services
+
+| Service | Container | Port |
+|---------|-----------|------|
+| Frontend (Nginx + React) | `rfs-frontend` | 80 |
+| Backend (Node.js API) | `rfs-backend` | 4000 |
+| PostgreSQL | `rfs-db` | 5432 |
+| Redis | `rfs-redis` | 6379 |
+
+---
+
+## Local Development (without Docker)
+
+### Prerequisites
+- Node.js >= 20
+- PostgreSQL + Redis running locally
+
+```bash
 npm run install:all
-```
-
-### 2. Configure environment
-```bash
 cp .env.example backend/.env
-# Edit backend/.env with your local DB credentials and secrets
-```
-
-### 3. Setup database
-```bash
-cd backend
-npm run db:generate
-npm run db:migrate
-npm run db:seed
-cd ..
-```
-
-### 4. Start development servers
-```bash
+# Edit backend/.env — set DATABASE_URL to localhost:5432, REDIS_URL to localhost:6379
+cd backend && npm run db:generate && npm run db:migrate && npm run db:seed && cd ..
 npm run dev
-# Frontend: http://localhost:5173
-# Backend API: http://localhost:4000
-# Health: http://localhost:4000/health
+# Frontend: http://localhost:5173  |  Backend: http://localhost:4000
 ```
 
 ---
@@ -62,41 +87,42 @@ npm run dev
 
 ```
 ripfarsight/
-├── frontend/                # React + TypeScript + Tailwind
-│   └── src/
-│       ├── components/
-│       ├── pages/
-│       ├── hooks/
-│       ├── services/        # axios API client
-│       ├── store/           # Zustand
-│       ├── types/
-│       └── utils/
+├── frontend/
+│   ├── src/
+│   │   ├── components/    pages/    hooks/
+│   │   ├── services/      store/    types/    utils/
+│   ├── Dockerfile
+│   └── nginx.conf         # Nginx SPA + API proxy config
 ├── backend/
 │   ├── src/
-│   │   ├── routes/
-│   │   ├── controllers/
-│   │   ├── services/
-│   │   ├── middleware/      # auth, RBAC, error handler
-│   │   └── utils/           # email, PDF helpers
+│   │   ├── routes/        controllers/    services/
+│   │   ├── middleware/    models/         utils/
 │   └── prisma/
 │       ├── schema.prisma
 │       └── seed.ts
+├── docker-compose.yml     # All 4 services
 ├── .env.example
-├── ecosystem.config.js      # PM2 config
 ├── deploy.sh
 └── README.md
 ```
 
 ---
 
+## Deployment
+
+```bash
+# On the server:
+git clone https://github.com/lamba-manish-hexalog/ripfarsight.git /var/www/ripfarsight
+cd /var/www/ripfarsight
+cp .env.example .env   # fill in production values
+chmod +x deploy.sh
+./deploy.sh
+```
+
+---
+
 ## Linear Epic
 [HEX-730 — Infrastructure & Setup](https://linear.app/hexalog-technologies/issue/HEX-730)
-
-## Branch Naming
-`hex-[ticket-id]/[feature-slug]`
-
-## PR Format
-`[HEX-XXX] Short description`
 
 ---
 *Managed by VectorNexus[Beta] — Hexalog AI SDLC Orchestration*
