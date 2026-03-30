@@ -1,0 +1,20 @@
+{
+  "name": "ripfarsight",
+  "version": "0.1.0",
+  "description": "RipFarSight — HR Management Platform | VectorNexus[Beta]",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "cd frontend && npm run build && cd ../backend && npm run build",
+    "install:all": "cd frontend && npm install && cd ../backend && npm install",
+    "lint": "cd frontend && npm run lint && cd ../backend && npm run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

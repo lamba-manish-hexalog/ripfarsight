@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Department {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  employees Employee[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Role {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  isSystem  Boolean    @default(false)
+  employees Employee[]
+}
+
+model Shift {
+  id         String     @id @default(uuid())
+  name       String
+  startTime  String
+  endTime    String
+  lateAfter  String
+  totalHours Float
+  employees  Employee[]
+}
+
+model Employee {
+  id             String         @id @default(uuid())
+  name           String
+  email          String         @unique
+  phone          String?
+  dateOfJoining  DateTime
+  departmentId   String
+  department     Department     @relation(fields: [departmentId], references: [id])
+  roleId         String
+  role           Role           @relation(fields: [roleId], references: [id])
+  managerId      String?
+  manager        Employee?      @relation("ManagerSubordinate", fields: [managerId], references: [id])
+  subordinates   Employee[]     @relation("ManagerSubordinate")
+  shiftId        String?
+  shift          Shift?         @relation(fields: [shiftId], references: [id])
+  status         EmployeeStatus @default(ACTIVE)
+  passwordHash   String
+  attendance     Attendance[]
+  leaveBalances  LeaveBalance[]
+  leaveRequests  LeaveRequest[]
+  payrolls       Payroll[]
+  salaryStructure SalaryStructure?
+  expenses       ExpenseClaim[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([departmentId])
+  @@index([roleId])
+  @@index([status])
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Attendance {
+  id          String           @id @default(uuid())
+  employeeId  String
+  employee    Employee         @relation(fields: [employeeId], references: [id])
+  date        DateTime         @db.Date
+  clockIn     DateTime?
+  clockOut    DateTime?
+  status      AttendanceStatus @default(PRESENT)
+  correctedBy String?
+
+  @@unique([employeeId, date])
+  @@index([date])
+  @@index([employeeId])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+}
+
+model PublicHoliday {
+  id   String   @id @default(uuid())
+  date DateTime @db.Date
+  name String
+  year Int
+
+  @@unique([date])
+}
+
+model LeaveType {
+  id           String         @id @default(uuid())
+  name         String         @unique
+  annualQuota  Int
+  balances     LeaveBalance[]
+  requests     LeaveRequest[]
+}
+
+model LeaveBalance {
+  id          String    @id @default(uuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+  leaveTypeId String
+  leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id])
+  year        Int
+  balance     Float
+
+  @@unique([employeeId, leaveTypeId, year])
+}
+
+model LeaveRequest {
+  id          String      @id @default(uuid())
+  employeeId  String
+  employee    Employee    @relation(fields: [employeeId], references: [id])
+  leaveTypeId String
+  leaveType   LeaveType   @relation(fields: [leaveTypeId], references: [id])
+  fromDate    DateTime    @db.Date
+  toDate      DateTime    @db.Date
+  days        Float
+  reason      String
+  status      LeaveStatus @default(PENDING)
+  reviewedBy  String?
+  reviewNote  String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([status])
+  @@index([employeeId])
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model SalaryStructure {
+  id            String   @id @default(uuid())
+  employeeId    String   @unique
+  employee      Employee @relation(fields: [employeeId], references: [id])
+  basic         Float
+  hra           Float
+  allowances    Json     @default("{}")
+  effectiveFrom DateTime
+  updatedAt     DateTime @updatedAt
+}
+
+model Payroll {
+  id              String   @id @default(uuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id])
+  month           Int
+  year            Int
+  grossPay        Float
+  pfEmployee      Float
+  pfEmployer      Float
+  esiEmployee     Float
+  esiEmployer     Float
+  professionalTax Float
+  netPay          Float
+  payslipPath     String?
+  payslipSent     Boolean  @default(false)
+  runAt           DateTime @default(now())
+
+  @@unique([employeeId, month, year])
+  @@index([month, year])
+}
+
+model ExpenseClaim {
+  id              String        @id @default(uuid())
+  employeeId      String
+  employee        Employee      @relation(fields: [employeeId], references: [id])
+  category        String
+  amount          Float
+  description     String
+  receiptPath     String?
+  status          ExpenseStatus @default(PENDING)
+  managerApproval String?
+  hrApproval      String?
+  reimbursedAt    DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([status])
+  @@index([employeeId])
+}
+
+enum ExpenseStatus {
+  PENDING
+  MANAGER_APPROVED
+  HR_APPROVED
+  REIMBURSED
+  REJECTED
+}
